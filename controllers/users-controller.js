@@ -72,18 +72,18 @@ const login = async (req, res, next) => {
     let loginUser;
 
     try {
-        loginUser = await User.find({ email });
+        loginUser = await User.findOne({ email });
     } catch (err) {
         const error = new HttpError('Retrieve user info failed on mongodb.', 500);
         return next(error);
     }
 
-    if (!loginUser && loginUser.password !== password) {
+    if (!loginUser || loginUser.password !== password) {
         const error = new HttpError('Invalid credential that used to login.', 401);
         return next(error);
     }
 
-    res.json({ message: 'Logged In!' });
+    res.json({ message: 'Logged In!', user: loginUser.toObject({getters: true}) });
 };
 
 exports.getUsers = getUsers;

@@ -27,7 +27,7 @@ const getPlaceById = async (req, res, next) => {
 
 const getPlacesByUserId = async (req, res, next) => {
     const userId = req.params.uid;
-    let userPlaces = [];
+    let userPlaces;
 
     try {
         userPlaces = await User.findById(userId).populate('places');
@@ -36,7 +36,7 @@ const getPlacesByUserId = async (req, res, next) => {
         return next(error);
     }
 
-    if (!userPlaces || userPlaces.places.length === 0) {
+    if (!userPlaces) {
         const error = new HttpError('Could not find a place for provided user id.', 404);
         return next(error);
     }
@@ -82,7 +82,8 @@ const createPlace = async (req, res, next) => {
         description,
         location: coordinates,
         address,
-        creator
+        creator,
+        image: 'https://media.istockphoto.com/id/629604122/photo/cityscape-hong-kong-and-junkboat-at-twilight.jpg?s=612x612&w=0&k=20&c=iQGOvCiYdXQW-k6_uUJfvYXpJiSmQj-WCOXXOpXy1iE='
     });
 
     try {
@@ -123,9 +124,10 @@ const updatePlaceById = async (req, res, next) => {
         throw new HttpError('Could not update due to place not found on records.', 404);
     }
 
-    const { title, description } = req.body;
+    const { title, description, address } = req.body;
     updatingPlace.title = title || updatingPlace.title;
     updatingPlace.description = description || updatingPlace.description;
+    updatingPlace.address = address || updatingPlace.address;
 
     try {
         await updatingPlace.save();
