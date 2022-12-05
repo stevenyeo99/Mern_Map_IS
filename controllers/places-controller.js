@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { validationResult } = require('express-validator');
 
 const HttpError = require('../models/http-error');
@@ -83,19 +84,19 @@ const createPlace = async (req, res, next) => {
         location: coordinates,
         address,
         creator,
-        image: 'https://media.istockphoto.com/id/629604122/photo/cityscape-hong-kong-and-junkboat-at-twilight.jpg?s=612x612&w=0&k=20&c=iQGOvCiYdXQW-k6_uUJfvYXpJiSmQj-WCOXXOpXy1iE='
+        image: req.file.path
     });
 
     try {
         const session = await mongoose.startSession();
         session.startTransaction();
-
         await createdPlace.save({ session: session });
         loggedUser.places.push(createdPlace);
         await loggedUser.save({ session: session });
 
         await session.commitTransaction();
     } catch (err) {
+        console.log(err.message);
         const error = new HttpError('Failed to insert new place', 500);
         return next(error);
     }
@@ -155,6 +156,8 @@ const deletePlaceById = async (req, res, next) => {
         throw new HttpError('Could not delete due to place not found on records.', 404);
     }
 
+    const image = place.image;
+
     try {
         const session = await mongoose.startSession();
         session.startTransaction();
@@ -172,6 +175,10 @@ const deletePlaceById = async (req, res, next) => {
         const error = new HttpError('Could not delete place due to error mongodb', 500);
         return next(error);
     }
+
+    fs.unlink(image, err => {
+        console.log(err);
+    });
 
     res.status(200).json({message: 'Delete Place.'});
 };
