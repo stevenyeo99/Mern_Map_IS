@@ -1,4 +1,6 @@
 const { validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const HttpError = require('../models/http-error');
 const User = require('../models/user');
@@ -39,10 +41,18 @@ const signup = async (req, res, next) => {
         return next(error);
     }
 
+    let hashedPassword;
+    try {
+        hashedPassword = await bcrypt.hash(password, 12);
+    } catch (err) {
+        const error = new HttpError('Could not create user, please try again.');
+        return next(error);
+    }
+
     const createdUser = new User({
         name,
         email,
-        password,
+        password: hashedPassword,
         image: req.file.path,
         places: []
     });
@@ -54,8 +64,21 @@ const signup = async (req, res, next) => {
         return next(error);
     }
 
+    let token;
+    try {
+        token = jwt.sign({
+            userId: createdUser.id,
+            email: createdUser.email
+        }, 'something_secret', { expiresIn: '1h' });
+    } catch (err) {
+        const error = new HttpError('Failed to generate token.', 403);
+        return next(error);
+    }
+
     res.status(201).json({ 
-        user: createdUser.toObject({ getters: true })
+        userId: createdUser.id,
+        email: createdUser.email,
+        token: token
     });
 };
 
@@ -78,12 +101,36 @@ const login = async (req, res, next) => {
         return next(error);
     }
 
-    if (!loginUser || loginUser.password !== password) {
-        const error = new HttpError('Invalid credential that used to login.', 401);
+    if (!loginUser) {
+        const error = new HttpError('Invalid credential that used to login.', 403);
         return next(error);
     }
 
-    res.json({ message: 'Logged In!', user: loginUser.toObject({getters: true}) });
+    let isValidPassword = false;
+    try {
+        isValidPassword = await bcrypt.compare(password, loginUser.password);
+    } catch (err) {
+        const error = new HttpError('Something went wrong!', 500);
+        return next(error);
+    }
+
+    if (!isValidPassword) {
+        const error = new HttpError('Invalid credential that used to login.', 403);
+        return next(error);
+    }
+
+    let token;
+    try {
+        token = jwt.sign({
+            userId: loginUser.id,
+            email: loginUser.email
+        }, 'something_secret', { expiresIn: '1h' });
+    } catch (err) {
+        const error = new HttpError('Failed to generate token.', 403);
+        return next(error);
+    }
+
+    res.json({ userId: loginUser.id, email: loginUser.email, token: token });
 };
 
 exports.getUsers = getUsers;

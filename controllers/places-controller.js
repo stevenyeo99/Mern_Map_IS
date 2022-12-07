@@ -52,19 +52,20 @@ const createPlace = async (req, res, next) => {
         return next(new HttpError('Invali Input on Creating New Place Form.', 422));
     }
 
-    const { title, description, address, creator } = req.body;
+    const { title, description, address } = req.body;
+    const { userId } = req.userData;
 
     let loggedUser;
 
     try {
-        loggedUser = await User.findById(creator);
+        loggedUser = await User.findById(userId);
     } catch (err) {
         const error = new HttpError('Something went wrong during fetch data mongodb.', 500);
         return next(error);
     }
 
     if (!loggedUser) {
-        const error = new HttpError('User not authenticated.', 401);
+        const error = new HttpError('User not authenticated.', 403);
         return next(error);
     }
 
@@ -83,7 +84,7 @@ const createPlace = async (req, res, next) => {
         description,
         location: coordinates,
         address,
-        creator,
+        creator: userId,
         image: req.file.path
     });
 
@@ -125,6 +126,11 @@ const updatePlaceById = async (req, res, next) => {
         throw new HttpError('Could not update due to place not found on records.', 404);
     }
 
+    if (updatingPlace.creator.toString() !== req.userData.userId) {
+        const error = new HttpError('Could not edit this data, not authorized for this.', 401);
+        return next(error);
+    }
+
     const { title, description, address } = req.body;
     updatingPlace.title = title || updatingPlace.title;
     updatingPlace.description = description || updatingPlace.description;
@@ -154,6 +160,11 @@ const deletePlaceById = async (req, res, next) => {
 
     if (!place) {
         throw new HttpError('Could not delete due to place not found on records.', 404);
+    }
+
+    if (place.creator.id !== req.userData.userId) {
+        const error = new HttpError('Could not delete this data, not authorized for this.', 401);
+        return next(error);
     }
 
     const image = place.image;
