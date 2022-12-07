@@ -69,7 +69,7 @@ const signup = async (req, res, next) => {
         token = jwt.sign({
             userId: createdUser.id,
             email: createdUser.email
-        }, 'something_secret', { expiresIn: '1h' });
+        }, process.env.JWT_KEY, { expiresIn: '1h' });
     } catch (err) {
         const error = new HttpError('Failed to generate token.', 403);
         return next(error);
@@ -124,7 +124,7 @@ const login = async (req, res, next) => {
         token = jwt.sign({
             userId: loginUser.id,
             email: loginUser.email
-        }, 'something_secret', { expiresIn: '1h' });
+        }, process.env.JWT_KEY, { expiresIn: '1h' });
     } catch (err) {
         const error = new HttpError('Failed to generate token.', 403);
         return next(error);
